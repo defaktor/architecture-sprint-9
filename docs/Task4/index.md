@@ -37,18 +37,18 @@
 
 Person(client, "Клиент")
 System_Boundary(std_bank, "Банк Стандарт") {
-    System(ibs, "АБС")
-    System(ib, "Интернет-банк")
-    System(callcenter, "Система кол-центра")
-    System(partnercc, "Партнёрский кол-центр")
-    System_Ext(xls_proc, "Процесс XLS ставок")
+  System(ibs, "АБС", "Core Banking System")
+  System(ib, "Интернет-банк", "ASP.NET MVC")
+  System(site, "Сайт", "Подача заявки через форму")
+  System(callcenter, "Система кол-центра", "Связь с клиентом")
+  System_Ext(telecom, "СМС-шлюз", "Отправка СМС подтверждений")
 }
 
-Rel(client, callcenter, "Уточнение ставок по телефону")
-Rel(ib, callcenter, "Просмотр ставок сотрудником")
-Rel(xls_proc, ibs, "Загрузка/Обновление ставок")
-Rel(xls_proc, callcenter, "Экспорт ставок (в файл)")
-Rel(xls_proc, partnercc, "Выгрузка CSV-файла")
+Rel(client, site, "Подача заявки через веб-форму")
+Rel(client, ib, "Работа с депозитами")
+Rel(site, callcenter, "Передача заявки")
+Rel(ib, ibs, "Передача заявки")
+Rel(ibs, telecom, "Отправка СМС")
 @enduml
 ```
 
@@ -58,22 +58,31 @@ Rel(xls_proc, partnercc, "Выгрузка CSV-файла")
 @startuml
 !includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
-System_Boundary(std_bank, "Медиаплатформа банка") {
-    Container(ib_ui, "Веб-клиент ИБ", "ASP.NET MVC", "Просмотр UI клиентом и сотрудником")
-    Container(ib_api, "API интернет-банка", "C# .NET", "Получение ставок")
-    Container(callcenter_ui, "Интерфейс кол-центра", "React", "Просмотр ставок")
-    Container(callcenter_api, "API кол-центра", "Java Spring Boot", "Получение ставок")
-    Container(xls_sync, "Сервис выгрузки ставок", "Python", "Генерация CSV файлов")
-    ContainerDb(ms_sql, "БД ставок", "MS SQL", "Хранение актуальных ставок")
+System_Boundary(std_bank, "Информационная система банка") {
+    Container(ib_ui, "Веб-клиент интернет-банка", "ASP.NET MVC", "Интерфейс взаимодействия с клиентом")
+    Container(ib_api, "API интернет-банка", "C# .NET", "Обработка логики депозитов и ставок")
+    ContainerDb(ib_db, "База данных интернет-банка", "MS SQL", "Хранение информации о клиентах и заявках")
+
+    Container(callcenter_ui, "Интерфейс кол-центра", "React.js", "Рабочее место оператора")
+    Container(callcenter_api, "API кол-центра", "Java Spring Boot", "Получение ставок и взаимодействие с БД")
+    ContainerDb(callcenter_db, "База данных кол-центра", "PostgreSQL", "Ставки, обращения клиентов")
+
+    Container(xls_exporter, "Сервис выгрузки ставок", "Python", "Генерация CSV-файлов и экспорт во внешнюю папку")
+    ContainerDb(rates_db, "База ставок", "MS SQL", "Промежуточное хранилище ставок")
+
+    Container(ibs_core, "Ядро АБС", "PL/SQL в Oracle", "Вычисление ставок и принятие заявок")
+    ContainerDb(ibs_db, "БД АБС", "Oracle", "Учетная информация по счетам и депозитам")
 }
 
 Rel(ib_ui, ib_api, "REST")
+Rel(ib_api, ib_db, "TDS / SQL")
+Rel(ib_api, rates_db, "Обновление ставок")
 Rel(callcenter_ui, callcenter_api, "REST")
-Rel(callcenter_api, ms_sql, "JDBC/SQL")
-Rel(ib_api, ms_sql, "ADO.NET")
-Rel(xls_sync, ms_sql, "JDBC")
-Rel(xls_sync, callcenter_api, "HTTP - получение обновлений")
-Rel(xls_sync, partnercc, "Выгрузка CSV")
+Rel(callcenter_api, callcenter_db, "JDBC")
+Rel(callcenter_api, rates_db, "Получение ставок")
+Rel(xls_exporter, rates_db, "Чтение ставок")
+Rel(xls_exporter, partnercc, "Экспорт CSV по Email или SFTP")
+Rel(ibs_core, ibs_db, "PL/SQL")
 @enduml
 ```
 

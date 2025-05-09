@@ -44,61 +44,55 @@
 
 ```puml
 @startuml
-!define RECTANGLE class
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
-actor "Клиент" as Client
-actor "Менеджер кол-центра" as CallMgr
-actor "Менеджер бэк-офиса" as BackMgr
+Person(client, "Клиент")
+System_Boundary(std_bank, "Банк Стандарт") {
+  System(ibs, "АБС", "Core Banking System")
+  System(ib, "Интернет-банк", "ASP.NET MVC")
+  System(site, "Сайт", "Подача заявки через форму")
+  System(callcenter, "Система кол-центра", "Связь с клиентом")
+  System_Ext(telecom, "СМС-шлюз", "Отправка СМС подтверждений")
+}
 
-rectangle "Сайт (PHP + React.js)" as Site
-rectangle "Интернет-банк (ASP.NET MVC)" as IBank
-rectangle "API заявок (Java)" as API
-rectangle "Кол-центр (React.js + Spring Boot)" as CC
-rectangle "АБС (Delphi + PL/SQL)" as ABS
-rectangle "СМС-шлюз" as SMS
-
-Client --> Site : Подача заявки
-Client --> IBank : Подача заявки
-Site --> API : Отправка заявки
-IBank --> API : Отправка заявки
-API --> SMS : Уведомления
-API --> CC : Заявки с сайта
-API --> "БД заявок (MS SQL)" : Хранение
-
-CallMgr --> CC : Работа с заявкой
-BackMgr --> ABS : Назначение ставки
-ABS --> SMS : Оповещение
+Rel(client, site, "Подача заявки через веб-форму")
+Rel(client, ib, "Работа с депозитами")
+Rel(site, callcenter, "Передача заявки")
+Rel(ib, ibs, "Передача заявки")
+Rel(ibs, telecom, "Отправка СМС")
 @enduml
 ```
 
-### Диаграмма C4 — Уровень контейнеров
+### Диаграмма компонентов (C4: Container)
 
 ```puml
 @startuml
-!define RECTANGLE class
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
-package "Интернет-банк" {
-  RECTANGLE "Web-приложение ASP.NET MVC\n.NET Framework 4.5" as IB_WEB
-  RECTANGLE "БД MS SQL\n(инфраструктура банка)" as IB_DB
+System_Boundary(std_bank, "Информационная система банка") {
+  Container(ib_ui, "Веб-клиент интернет-банка", "ASP.NET MVC", "UI клиента")
+  Container(ib_api, "API интернет-банка", ".NET Framework", "Бизнес-логика депозитов")
+  ContainerDb(ib_db, "БД интернет-банка", "MS SQL", "Хранение данных заявок и ставок")
+
+  Container(site_ui, "Форма сайта", "React + PHP", "Заявка для новых клиентов")
+
+  Container(callcenter_api, "API кол-центра", "Java", "Обработка заявок с сайта")
+  ContainerDb(callcenter_db, "БД кол-центра", "PostgreSQL", "Заявки на депозит")
+
+  Container(ibs_core, "Ядро АБС", "PL/SQL", "Работа с депозитами")
+  ContainerDb(ibs_db, "БД АБС", "Oracle", "Учет счетов, депозитов и ставок")
+
+  Container(telecom, "СМС-шлюз", "Внешняя система", "Отправка СМС уведомлений")
 }
 
-package "АБС" {
-  RECTANGLE "Клиентское приложение\n(Delphi)" as ABS_UI
-  RECTANGLE "PL/SQL процедуры\n(логика)" as ABS_LOGIC
-  RECTANGLE "БД Oracle" as ABS_DB
-}
-
-package "API заявок" {
-  RECTANGLE "Spring Boot приложение" as API_APP
-  RECTANGLE "БД заявок (MS SQL)" as API_DB
-}
-
-IB_WEB --> API_APP : HTTP (подача заявки)
-API_APP --> API_DB : SQL
-API_APP --> ABS_LOGIC : Интерфейс подтверждения
-ABS_LOGIC --> ABS_DB
-IB_WEB --> IB_DB : SQL
-
+Rel(ib_ui, ib_api, "REST")
+Rel(ib_api, ib_db, "SQL")
+Rel(ib_api, ibs_core, "Очередь или промежуточный сервис")
+Rel(site_ui, callcenter_api, "HTTP POST")
+Rel(callcenter_api, callcenter_db, "JDBC")
+Rel(callcenter_api, ibs_core, "Создание заявки в АБС")
+Rel(ibs_core, ibs_db, "PL/SQL")
+Rel(ibs_core, telecom, "HTTP API")
 @enduml
 ```
 
